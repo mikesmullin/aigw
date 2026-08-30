@@ -1,0 +1,8 @@
+node_modules/
+mac-aigw/target/
+/tmp/
+certs/
+.env
+.api-key-rotated
+*.log
+.DS_Store

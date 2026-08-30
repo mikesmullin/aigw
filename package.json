@@ -1,0 +1,16 @@
+{
+  "name": "aigw",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "OpenAI-compatible LAN gateway over AGL providers.",
+  "scripts": {
+    "start": "bun src/index.coffee",
+    "dev": "bun --watch src/index.coffee",
+    "certs": "bash scripts/gen-certs.sh"
+  },
+  "dependencies": {
+    "agl-ai": "file:../agl",
+    "bun-coffeescript": "^1.0.3"
+  }
+}

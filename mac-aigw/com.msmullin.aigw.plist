@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.msmullin.aigw</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/local/bin/aigw</string>
+    </array>
+
+    <!-- Run as soon as the daemon is loaded -->
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- Restart automatically if it crashes -->
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>/var/log/aigw.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/var/log/aigw.log</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>LISTEN_ADDR</key>
+        <string>127.0.0.1:1234</string>
+
+        <!-- Set to the gateway HOST:PORT from aigw .env before installing. -->
+        <key>UPSTREAM_ADDR</key>
+        <string>CHANGE_ME:1234</string>
+    </dict>
+</dict>
+</plist>

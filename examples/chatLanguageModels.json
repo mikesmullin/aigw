@@ -1,0 +1,30 @@
+[
+  {
+    "name": "AI Gateway",
+    "vendor": "customendpoint",
+    "apiKey": "REPLACE_VIA_VSCODE_UI",
+    "apiType": "chat-completions",
+    "models": [
+      {
+        "id": "default",
+        "name": "AI Gateway (local fav)",
+        "url": "https://127.0.0.1:1234/v1/chat/completions",
+        "toolCalling": true,
+        "vision": true,
+        "thinking": true,
+        "streaming": true,
+        "maxInputTokens": 131072,
+        "maxOutputTokens": 16384
+      },
+      {
+        "id": "xai:grok-4.5",
+        "name": "Grok 4.5 (via aigw)",
+        "url": "https://127.0.0.1:1234/v1/chat/completions",
+        "toolCalling": true,
+        "vision": true,
+        "maxInputTokens": 128000,
+        "maxOutputTokens": 16384
+      }
+    ]
+  }
+]
