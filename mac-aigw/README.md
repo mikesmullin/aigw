@@ -3,11 +3,6 @@
 A minimal TCP reverse proxy that runs as a macOS system daemon, forwarding
 `127.0.0.1:$PORT` → `$HOST:$PORT` (the AI Gateway bind address from `.env`).
 
-Some managed Macs intercept user-space LAN traffic, so GUI apps cannot reach
-the gateway host directly. A LaunchDaemon is not subject to that interception.
-Client apps connect to `127.0.0.1` (loopback, always reachable) and the daemon
-proxies onward.
-
 On the Mac this crate is checked out at `~/Workspace/me/aigw`. In a full aigw
 clone it lives in `mac-aigw/`.
 
@@ -35,12 +30,6 @@ The binary will be at `target/release/aigw`.
 ---
 
 ## Install as a system daemon
-
-`/Library/LaunchDaemons/` (vs `~/Library/LaunchAgents/`) is intentional.
-LaunchDaemons run as root at boot time, outside of any user session, so they
-are not subject to per-session network filters that only intercept user-space
-processes. LaunchAgents run inside the login session and *would* be filtered.
-The daemon also starts before login and persists across user switches/logouts.
 
 Edit `UPSTREAM_ADDR` in `com.msmullin.aigw.plist` to the gateway `HOST:PORT`
 from aigw `.env` before copying the plist into place.

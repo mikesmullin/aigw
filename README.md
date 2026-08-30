@@ -54,7 +54,3 @@ Regenerating the CA (`rm -rf tmp/certs && bash scripts/gen-certs.sh`) requires r
 ## Auth
 
 `Authorization: Bearer $LLM_PROXY_API_KEY`. Provider keys stay on the gateway host (AGL `.env`).
-
-## Mac splice (optional)
-
-Some managed Macs cannot reach LAN addresses from user-space apps. `mac-aigw` is a LaunchDaemon that splices `127.0.0.1:$PORT` to `$HOST:$PORT` so GUI clients only talk to loopback. See `mac-aigw/README.md`. Set `UPSTREAM_ADDR` in the plist to this host's `HOST:PORT` before installing.
