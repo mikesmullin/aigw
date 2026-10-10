@@ -52,6 +52,9 @@ loadConfig = ->
     .filter Boolean
   # Favorite local model lives in ~/.config/agl/config.yaml (AGL default_model).
   aglDir: aglDir
+  # web-researcher UI proxied at <SEARCH_PATH>/ ; set SEARCH_UPSTREAM= (empty) to disable.
+  searchUpstream: (process.env.SEARCH_UPSTREAM ? 'http://127.0.0.1:2340').trim()
+  searchPath: '/' + (process.env.SEARCH_PATH or '/search').replace(/^\/+|\/+$/g, '')
   tlsCert: process.env.TLS_CERT or ''
   tlsKey: process.env.TLS_KEY or ''
   root: ROOT

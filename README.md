@@ -27,6 +27,16 @@ bash scripts/install-systemd.sh
 journalctl --user -u aigw -f
 ```
 
+## Search UI (`/search/`)
+
+aigw also reverse-proxies the [web-researcher](https://github.com/mikesmullin/web-researcher) UI on the same port,
+nginx-style (prefix stripped): `https://$HOST:$PORT/search/` → `SEARCH_UPSTREAM` (default `http://127.0.0.1:2340`).
+
+- `/search` redirects to `/search/`; SSE streams are passed through unbuffered, and a client disconnect aborts the upstream request.
+- It is a browser UI, so the Bearer key is **not** required (and is never forwarded). Access is limited by `ALLOWED_CIDRS`
+  checked against the real socket peer address (not `X-Forwarded-For`); others get 403.
+- Upstream down → `502`. Change the prefix with `SEARCH_PATH`; disable with an empty `SEARCH_UPSTREAM=`.
+
 ## TLS
 
 ```sh

@@ -85,4 +85,4 @@ checkAuth = (req, cfg) ->
 
   { ok: true }
 
-export { checkAuth, jsonError, clientIp }
+export { checkAuth, jsonError, clientIp, cidrContains }

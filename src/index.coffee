@@ -3,6 +3,7 @@ import { chatCompletions, listModels, embeddingsRequest, resolveDefaultModel } f
 import { loadConfig, resolveRequestModel } from './config.coffee'
 import { checkAuth, jsonError } from './auth.coffee'
 import { loadTls } from './tls.coffee'
+import { proxySearch } from './search.coffee'
 
 cfg = await loadConfig()
 
@@ -65,7 +66,11 @@ rewriteModel = (res, displayModel) ->
       # fall through
   res
 
-handler = (req) ->
+handler = (req, server) ->
+  # Web UI route (own allowlist check; browsers can't send the Bearer key)
+  searched = await proxySearch req, server, cfg
+  return searched if searched
+
   url = new URL req.url
   if req.method is 'OPTIONS'
     return new Response null, status: 204, headers: CORS
@@ -182,6 +187,7 @@ aigw listening on #{scheme}://#{cfg.host}:#{cfg.port}
   models:  GET  /v1/models
   chat:    POST /v1/chat/completions
   embed:   POST /v1/embeddings
+  search:  #{if cfg.searchUpstream then "ANY  #{cfg.searchPath}/ -> #{cfg.searchUpstream}" else 'off'}
 
   default model: #{await resolveDefaultModel()} (~/.config/agl/config.yaml)
   api key:       #{keyHint}
