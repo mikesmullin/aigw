@@ -6,3 +6,4 @@ certs/
 .api-key-rotated
 *.log
 .DS_Store
+config.yaml

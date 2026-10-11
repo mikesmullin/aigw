@@ -1,23 +1,26 @@
-# Reverse proxy for the web-researcher UI: <SEARCH_PATH>/* -> SEARCH_UPSTREAM, prefix stripped
-# (nginx `location /search/ { proxy_pass http://127.0.0.1:2340/; }`).
+# Reverse proxies from config.yaml `proxies:` (prefix -> upstream), nginx-style with the prefix stripped:
+#   proxies: { /search: http://127.0.0.1:2340 }  =>  /search/* -> http://127.0.0.1:2340/*
 #
-# This is a browser UI, so it cannot send the Bearer API key; access is gated by the
+# These are browser UIs, so they cannot send the Bearer API key; access is gated by the
 # ALLOWED_CIDRS allowlist against the real socket peer address instead (never X-Forwarded-For).
-import { cidrContains } from './auth.coffee'
+import { cidrContains, peerIp } from './auth.coffee'
 
 HOP = ['connection', 'keep-alive', 'proxy-authenticate', 'proxy-authorization', 'te', 'trailer', 'transfer-encoding', 'upgrade', 'host']
-
-peerIp = (req, server) ->
-  (server?.requestIP(req)?.address or '').replace /^::ffff:/i, ''
 
 plain = (status, text) ->
   new Response text, status: status, headers: { 'Content-Type': 'text/plain; charset=utf-8' }
 
-# Returns a Response when the request belongs to the search route, otherwise null.
-proxySearch = (req, server, cfg) ->
-  base = cfg.searchPath
+findProxy = (cfg, pathname) ->
+  for proxy in cfg.proxies
+    return proxy if pathname is proxy.prefix or pathname.startsWith proxy.prefix + '/'
+  null
+
+# Returns a Response when the request belongs to a proxied prefix, otherwise null.
+proxyRequest = (req, server, cfg) ->
   url = new URL req.url
-  return null unless cfg.searchUpstream and (url.pathname is base or url.pathname.startsWith base + '/')
+  proxy = findProxy cfg, url.pathname
+  return null unless proxy
+  base = proxy.prefix
 
   # Canonical trailing slash so the app's relative URLs resolve under the prefix.
   if url.pathname is base
@@ -25,12 +28,12 @@ proxySearch = (req, server, cfg) ->
 
   ip = peerIp req, server
   unless ip in ['127.0.0.1', '::1'] or cfg.allowedCidrs.some((c) -> cidrContains c, ip)
-    console.warn "[search] 403 #{req.method} #{url.pathname} from #{ip or '(unknown)'}"
+    console.warn "[proxy] 403 #{req.method} #{url.pathname} from #{ip or '(unknown)'}"
     return plain 403, "Client IP #{ip or '(unknown)'} is not in ALLOWED_CIDRS."
 
   server.timeout req, 0  # research streams (SSE) can be quiet for a while
 
-  target = cfg.searchUpstream.replace(/\/+$/, '') + url.pathname.slice(base.length) + url.search
+  target = proxy.upstream + url.pathname.slice(base.length) + url.search
   headers = new Headers req.headers
   headers.delete h for h in HOP
   headers.delete 'authorization'  # never forward the gateway key
@@ -47,8 +50,8 @@ proxySearch = (req, server, cfg) ->
       signal: req.signal  # client disconnect aborts the upstream request (stops the agent run)
   catch err
     return null if req.signal.aborted
-    console.error "[search] upstream #{cfg.searchUpstream} unreachable: #{err.message or err}"
-    return plain 502, "Search UI is not running (#{cfg.searchUpstream})."
+    console.error "[proxy] #{base} upstream #{proxy.upstream} unreachable: #{err.message or err}"
+    return plain 502, "Upstream for #{base}/ is not running (#{proxy.upstream})."
 
   out = new Headers up.headers
   out.delete h for h in HOP
@@ -59,4 +62,4 @@ proxySearch = (req, server, cfg) ->
   out.set 'location', base + loc if loc?.startsWith '/'
   new Response up.body, status: up.status, statusText: up.statusText, headers: out
 
-export { proxySearch }
+export { proxyRequest }

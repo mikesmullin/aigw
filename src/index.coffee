@@ -3,7 +3,8 @@ import { chatCompletions, listModels, embeddingsRequest, resolveDefaultModel } f
 import { loadConfig, resolveRequestModel } from './config.coffee'
 import { checkAuth, jsonError } from './auth.coffee'
 import { loadTls } from './tls.coffee'
-import { proxySearch } from './search.coffee'
+import { proxyRequest } from './proxy.coffee'
+import { runRoute } from './routes.coffee'
 
 cfg = await loadConfig()
 
@@ -67,11 +68,15 @@ rewriteModel = (res, displayModel) ->
   res
 
 handler = (req, server) ->
-  # Web UI route (own allowlist check; browsers can't send the Bearer key)
-  searched = await proxySearch req, server, cfg
-  return searched if searched
+  # config.yaml `proxies:` (web UIs; own allowlist check, browsers can't send the Bearer key)
+  proxied = await proxyRequest req, server, cfg
+  return proxied if proxied
 
   url = new URL req.url
+  # config.yaml script routes (e.g. GET /shutdown); peer-IP gated, no Bearer key.
+  if req.method is 'GET' and Object.hasOwn(cfg.routes, url.pathname)
+    return runRoute req, server, cfg, cfg.routes[url.pathname]
+
   if req.method is 'OPTIONS'
     return new Response null, status: 204, headers: CORS
 
@@ -187,7 +192,8 @@ aigw listening on #{scheme}://#{cfg.host}:#{cfg.port}
   models:  GET  /v1/models
   chat:    POST /v1/chat/completions
   embed:   POST /v1/embeddings
-  search:  #{if cfg.searchUpstream then "ANY  #{cfg.searchPath}/ -> #{cfg.searchUpstream}" else 'off'}
+  proxies: #{(cfg.proxies.map (p) -> "ANY #{p.prefix}/ -> #{p.upstream}").join(', ') or 'none (config.yaml)'}
+  routes:  #{(Object.keys(cfg.routes).map (p) -> "GET #{p}").join(', ') or 'none (config.yaml)'}
 
   default model: #{await resolveDefaultModel()} (~/.config/agl/config.yaml)
   api key:       #{keyHint}

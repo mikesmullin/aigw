@@ -15,6 +15,10 @@ cidrContains = (cidr, ip) ->
   mask = if bits is 32 then 0xffffffff else (~0 << (32 - bits)) >>> 0
   (netInt & mask) is (ipInt & mask)
 
+# Real socket peer address (never X-Forwarded-For), for routes a browser calls directly.
+peerIp = (req, server) ->
+  (server?.requestIP(req)?.address or '').replace /^::ffff:/i, ''
+
 clientIp = (req) ->
   xff = req.headers.get 'x-forwarded-for'
   return xff.split(',')[0].trim() if xff
@@ -85,4 +89,4 @@ checkAuth = (req, cfg) ->
 
   { ok: true }
 
-export { checkAuth, jsonError, clientIp, cidrContains }
+export { checkAuth, jsonError, clientIp, cidrContains, peerIp }

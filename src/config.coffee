@@ -1,6 +1,7 @@
 import { readFile } from 'fs/promises'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
+import { homedir } from 'os'
 
 ROOT = resolve dirname(fileURLToPath(import.meta.url)), '..'
 
@@ -34,6 +35,40 @@ mergeEnv = (fromAgl, fromProxy) ->
     process.env[k] = v if v? and v isnt ''
   return
 
+# config.yaml (gitignored, optional): `routes:` maps a GET path to a script on this host;
+# `proxies:` maps a path prefix to an upstream URL. Missing file = empty.
+readConfigYaml = ->
+  try
+    text = await readFile resolve(ROOT, 'config.yaml'), 'utf-8'
+  catch err
+    return {} if err.code is 'ENOENT'
+    throw err
+  Bun.YAML.parse(text) or {}
+
+normPrefix = (p) -> '/' + String(p).trim().replace(/^\/+|\/+$/g, '')
+
+routesFrom = (doc) ->
+  routes = {}
+  for own path, spec of (doc.routes or {})
+    # Either `"script"` or `{ run: "script", allow: [CIDRs] }` (allow overrides ALLOWED_CIDRS for that route).
+    spec = { run: spec } unless spec? and typeof spec is 'object'
+    allow = spec.allow
+    allow = [allow] if typeof allow is 'string'
+    routes[normPrefix path] =
+      run: String(spec.run).replace /^~(?=\/|$)/, homedir()
+      allow: if allow? then allow.map((c) -> String(c).trim()).filter(Boolean) else null
+  routes
+
+proxiesFrom = (doc) ->
+  # Without a `proxies:` key, fall back to the SEARCH_* env vars (the web-researcher UI).
+  unless doc.proxies?
+    upstream = (process.env.SEARCH_UPSTREAM ? 'http://127.0.0.1:2340').trim()
+    return [] unless upstream
+    return [prefix: normPrefix(process.env.SEARCH_PATH or '/search'), upstream: upstream.replace(/\/+$/, '')]
+  (for own prefix, upstream of doc.proxies when String(upstream).trim()
+    prefix: normPrefix prefix
+    upstream: String(upstream).trim().replace(/\/+$/, ''))
+
 loadConfig = ->
   fromProxy = await parseDotenv resolve ROOT, '.env'
   aglDirRaw = process.env.AGL_DIR or fromProxy.AGL_DIR or resolve ROOT, '../agl'
@@ -41,6 +76,7 @@ loadConfig = ->
 
   fromAgl = await parseDotenv resolve aglDir, '.env'
   mergeEnv fromAgl, fromProxy
+  doc = await readConfigYaml()
 
   host: process.env.HOST or '127.0.0.1'
   port: Number process.env.PORT or 1234
@@ -52,9 +88,8 @@ loadConfig = ->
     .filter Boolean
   # Favorite local model lives in ~/.config/agl/config.yaml (AGL default_model).
   aglDir: aglDir
-  # web-researcher UI proxied at <SEARCH_PATH>/ ; set SEARCH_UPSTREAM= (empty) to disable.
-  searchUpstream: (process.env.SEARCH_UPSTREAM ? 'http://127.0.0.1:2340').trim()
-  searchPath: '/' + (process.env.SEARCH_PATH or '/search').replace(/^\/+|\/+$/g, '')
+  routes: routesFrom doc
+  proxies: proxiesFrom doc
   tlsCert: process.env.TLS_CERT or ''
   tlsKey: process.env.TLS_KEY or ''
   root: ROOT

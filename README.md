@@ -27,15 +27,35 @@ bash scripts/install-systemd.sh
 journalctl --user -u aigw -f
 ```
 
-## Search UI (`/search/`)
+## Reverse proxies
 
-aigw also reverse-proxies the [web-researcher](https://github.com/mikesmullin/web-researcher) UI on the same port,
-nginx-style (prefix stripped): `https://$HOST:$PORT/search/` → `SEARCH_UPSTREAM` (default `http://127.0.0.1:2340`).
+aigw can reverse-proxy other local web services on the same port, nginx-style (prefix stripped):
+`https://$HOST:$PORT/<prefix>/` → an upstream URL. Set these in `config.yaml`:
 
-- `/search` redirects to `/search/`; SSE streams are passed through unbuffered, and a client disconnect aborts the upstream request.
-- It is a browser UI, so the Bearer key is **not** required (and is never forwarded). Access is limited by `ALLOWED_CIDRS`
+```yaml
+proxies:
+  /app: "http://127.0.0.1:8000"   # https://$HOST:$PORT/app/* → http://127.0.0.1:8000/*
+```
+
+- `/app` redirects to `/app/`; SSE streams are passed through unbuffered, and a client disconnect aborts the upstream request.
+- Proxies serve browser UIs, so the Bearer key is **not** required (and is never forwarded). Access is limited by `ALLOWED_CIDRS`
   checked against the real socket peer address (not `X-Forwarded-For`); others get 403.
-- Upstream down → `502`. Change the prefix with `SEARCH_PATH`; disable with an empty `SEARCH_UPSTREAM=`.
+- Upstream down → `502`. Remove the entry (or use `proxies: {}`) to disable it. Without a `proxies:` key, the legacy env-var fallback in `.env.example` applies.
+
+## Script routes (`config.yaml`)
+
+`config.yaml` (gitignored; copy from `config.yaml.example`) maps GET paths to scripts on this host:
+
+```yaml
+routes:
+  /example-script: "~/example.sh"
+  /example-restricted:
+    run: "~/example.sh"
+    allow: ["192.168.1.0/24"]   # optional; replaces ALLOWED_CIDRS for this route only
+```
+
+`GET /example-script` runs the script and returns its exit code, stdout and stderr as `text/plain` (status 500 if the exit code is non-zero).
+Routes use the same `ALLOWED_CIDRS` check as the proxies (or their own `allow:` list), and no Bearer key. Anyone allowed to reach a route can run its script, so keep the lists short.
 
 ## TLS
 

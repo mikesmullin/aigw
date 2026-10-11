@@ -1,0 +1,17 @@
+# Copy to config.yaml (gitignored). Both maps use a path as the key.
+#
+# proxies: path prefix -> upstream URL, nginx-style (prefix stripped).
+#   Example: /app/* -> 127.0.0.1:8000/*
+#   Gated by ALLOWED_CIDRS against the real peer IP; no Bearer key is required.
+proxies:
+  /example: "http://127.0.0.1:8000"
+
+# routes: GET path -> script on this host. The script runs; its exit code, stdout and stderr
+#   are returned as text/plain (HTTP 500 on non-zero exit). Same ALLOWED_CIDRS gate.
+#   Example: GET /example-script runs ~/example.sh
+#   Optional per-route `allow:` replaces ALLOWED_CIDRS for that route only.
+routes:
+  /example-script: "~/example.sh"
+  /example-restricted:
+    run: "~/example.sh"
+    allow: ["192.168.1.0/24"]
